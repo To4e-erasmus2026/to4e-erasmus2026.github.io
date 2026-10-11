@@ -7,7 +7,7 @@
 // When you add a new file to the site, add it to FILES below
 // and raise the number in VERSION by one.
 
-const VERSION = "to4e-v2";
+const VERSION = "to4e-v3";
 
 const FILES = [
   "./",
@@ -46,15 +46,24 @@ self.addEventListener("activate", event => {
   );
 });
 
+// Only the guide's own files (the list above) are handled here. Any other page
+// on the same address, such as a separate page in its own folder, is left alone.
+const OWN = new Set(FILES.map(f => new URL(f, self.location).pathname));
+
 self.addEventListener("fetch", event => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const sameSite = url.origin === self.location.origin;
 
-  if (sameSite && (req.mode === "navigate" || /\.(html|js|css)$/.test(url.pathname) || url.pathname.endsWith("/"))) {
-    event.respondWith(networkFirst(req));
-  } else {
+  if (url.origin === self.location.origin) {
+    if (!OWN.has(url.pathname)) return;
+    if (req.mode === "navigate" || /\.(html|js|css)$/.test(url.pathname) || url.pathname.endsWith("/")) {
+      event.respondWith(networkFirst(req));
+    } else {
+      event.respondWith(savedFirst(req));
+    }
+  } else if (req.destination !== "document") {
+    // fonts, the map library and map tiles from other websites
     event.respondWith(savedFirst(req));
   }
 });
